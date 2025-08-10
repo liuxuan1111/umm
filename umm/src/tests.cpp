@@ -150,18 +150,18 @@ namespace umm
         std::ofstream file;
         const std::string fname = umm_root_dir() + "/tests/test_results_non_linear_moment_matching.csv";
         file.open(fname);
-        file << "SampleSize,PV(IID),PV(MM1),PV(NLMM1),SE(IID),SE(MMSeed1),SE(NLMMSeed1),SE(MMSeed2),SE(NLMMSeed2)" << std::endl;
+        file << "SampleSize,V(IID),V(MM1),V(NLMM1),V(MM2),V(NLMM2),SE(IID),SE(MMSeed1),SE(NLMMSeed1),SE(MMSeed2),SE(NLMMSeed2)" << std::endl;
 
         class test_func : public integrand
         {
             virtual double operator()(const const_vector_iterator_t& it) const
             {
                 const double x = *it;
-                const double x_min = 0.25;
-                const double x_max = 0.75;
+                const double x_min = 0.01;
+                const double x_max = 0.99;
                 if (x <= x_min || x >= x_max)
                     return 0.0;
-                return std::exp(-0.25 / std::sqrt((x - x_min)) - 0.25 / std::sqrt((x_max - x)));
+                return std::exp(-0.1 / std::sqrt((x - x_min)) - 0.1 / std::sqrt((x_max - x))) / x;
             }
         };
 
@@ -199,7 +199,7 @@ namespace umm
                 << "MM2: " << v_mm2 << " (" << se_seed_mm2 << "); " << "NLMM2: " << v_nlmm2 << " (" << se_seed_nlmm2 << ") "
                 << std::endl;
 
-            file << sample_size << "," << v_mc << "," << v_mm1 << "," << v_nlmm1 
+            file << sample_size << "," << v_mc << "," << v_mm1 << "," << v_nlmm1 << "," << v_mm2 << "," << v_nlmm2
                 << "," << se_mc << "," << se_seed_mm1 << "," << se_seed_nlmm1 << "," << se_seed_mm2 << "," << se_seed_nlmm2
                 << std::endl;
         }

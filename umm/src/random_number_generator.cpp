@@ -130,6 +130,8 @@ namespace umm
     {
         m_rng = std::mt19937_64(m_seed);
         m_dist = std::exponential_distribution<double>(1.0);
+        if (m_mm_scheme == NON_LINEAR_MOMENT_MATCHING)
+            m_mm = moment_matching(std::vector<double>(1, 0.0), std::vector<double>(1, 1.0));
     }
 
     void random_exponential_generator::populate_random_samples(std::vector<double>& rn_out, const size_t size)
