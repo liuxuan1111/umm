@@ -20,6 +20,8 @@ namespace umm
 
         void test_variance_estimation_time();
 
+        void test_non_linear_moment_matching();
+
         void run_all_tests();
     }
 }

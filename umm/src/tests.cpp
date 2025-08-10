@@ -23,9 +23,9 @@ namespace umm
         const size_t dim = vols.size();
         const std::vector<double> mean(dim, 0.0);
         integrand_ptr_t f = std::shared_ptr<ki_put>(new ki_put(vols, r, strike, tenor, barrier));
-        monte_carlo mc(f, mean, corr, NO_MOMENT_MATCHING);
-        monte_carlo mm1(f, mean, corr, FIRST_ORDER_MOMENT_MATCHING);
-        monte_carlo mm2(f, mean, corr, SECOND_ORDER_MOMENT_MATCHING);
+        monte_carlo mc(f, mean, corr, NORMAL_DISTRIBUTION, NO_MOMENT_MATCHING);
+        monte_carlo mm1(f, mean, corr, NORMAL_DISTRIBUTION, FIRST_ORDER_MOMENT_MATCHING);
+        monte_carlo mm2(f, mean, corr, NORMAL_DISTRIBUTION, SECOND_ORDER_MOMENT_MATCHING);
         const size_t nb_seeds = 500;
         const std::vector<size_t> sample_sizes { 10000, 20000, 40000, 80000, 160000, 320000, 500000 };
         for (const size_t sample_size : sample_sizes)
@@ -77,9 +77,9 @@ namespace umm
             const double tenor = 1.0;
             const double barrier = 0.8;
             integrand_ptr_t f = std::shared_ptr<ki_put>(new ki_put(vols, r, strike, tenor, barrier));
-            monte_carlo mc(f, mean, corr, NO_MOMENT_MATCHING);
-            monte_carlo mm1(f, mean, corr, FIRST_ORDER_MOMENT_MATCHING);
-            monte_carlo mm2(f, mean, corr, SECOND_ORDER_MOMENT_MATCHING);
+            monte_carlo mc(f, mean, corr, NORMAL_DISTRIBUTION, NO_MOMENT_MATCHING);
+            monte_carlo mm1(f, mean, corr, NORMAL_DISTRIBUTION, FIRST_ORDER_MOMENT_MATCHING);
+            monte_carlo mm2(f, mean, corr, NORMAL_DISTRIBUTION, SECOND_ORDER_MOMENT_MATCHING);
 
             clock.start();
             const double pv_iid = mc.compute_integral(sample_size);
@@ -144,6 +144,69 @@ namespace umm
         std::cout << TEST_SEPARATOR << std::endl;
     }
 
+    void tests::test_non_linear_moment_matching()
+    {
+        std::cout << "running test_non_linear_moment_matching..." << std::endl;
+        std::ofstream file;
+        const std::string fname = umm_root_dir() + "/tests/test_results_non_linear_moment_matching.csv";
+        file.open(fname);
+        file << "SampleSize,PV(IID),PV(MM1),PV(NLMM1),SE(IID),SE(MMSeed1),SE(NLMMSeed1),SE(MMSeed2),SE(NLMMSeed2)" << std::endl;
+
+        class test_func : public integrand
+        {
+            virtual double operator()(const const_vector_iterator_t& it) const
+            {
+                const double x = *it;
+                const double x_min = 0.25;
+                const double x_max = 0.75;
+                if (x <= x_min || x >= x_max)
+                    return 0.0;
+                return std::exp(-0.25 / std::sqrt((x - x_min)) - 0.25 / std::sqrt((x_max - x)));
+            }
+        };
+
+        const double lamb = 1.0;
+        const std::vector<double> mean(1, 1.0 / lamb);
+        const std::vector<double> cov(1, 1.0 / (lamb * lamb));
+        integrand_ptr_t f(new test_func());
+        monte_carlo mc(f, mean, cov, EXPONENTIAL_DISTRIBUTION, NO_MOMENT_MATCHING, LINEAR_MOMENT_MATCHING);
+        monte_carlo mm1(f, mean, cov, EXPONENTIAL_DISTRIBUTION, FIRST_ORDER_MOMENT_MATCHING, LINEAR_MOMENT_MATCHING);
+        monte_carlo mm2(f, mean, cov, EXPONENTIAL_DISTRIBUTION, SECOND_ORDER_MOMENT_MATCHING, LINEAR_MOMENT_MATCHING);
+        monte_carlo nlmm1(f, mean, cov, EXPONENTIAL_DISTRIBUTION, FIRST_ORDER_MOMENT_MATCHING, NON_LINEAR_MOMENT_MATCHING);
+        monte_carlo nlmm2(f, mean, cov, EXPONENTIAL_DISTRIBUTION, SECOND_ORDER_MOMENT_MATCHING, NON_LINEAR_MOMENT_MATCHING);
+
+        const size_t nb_seeds = 500;
+        const std::vector<size_t> sample_sizes { 10000, 20000, 40000, 80000, 160000, 320000, 500000 };
+        for (const size_t sample_size : sample_sizes)
+        {
+            const double v_mc = mc.compute_integral(sample_size);
+            const double se_mc = std::sqrt(mc.compute_sample_variance());
+
+            const double v_mm1 = mm1.compute_integral(sample_size);
+            const double se_seed_mm1 = std::sqrt(mm1.compute_variance_by_independent_simulations(sample_size, nb_seeds));
+
+            const double v_nlmm1 = nlmm1.compute_integral(sample_size);
+            const double se_seed_nlmm1 = std::sqrt(nlmm1.compute_variance_by_independent_simulations(sample_size, nb_seeds));
+
+            const double v_mm2 = mm2.compute_integral(sample_size);
+            const double se_seed_mm2 = std::sqrt(mm2.compute_variance_by_independent_simulations(sample_size, nb_seeds));
+
+            const double v_nlmm2 = nlmm2.compute_integral(sample_size);
+            const double se_seed_nlmm2 = std::sqrt(nlmm2.compute_variance_by_independent_simulations(sample_size, nb_seeds));
+
+            std::cout << "sample size: " << sample_size << "; " << "IID: " << v_mc << " (" << se_mc << "); "
+                << "MM1: " << v_mm1 << " (" << se_seed_mm1 << "); " << "NLMM1: " << v_nlmm1 << " (" << se_seed_nlmm1 << ") " 
+                << "MM2: " << v_mm2 << " (" << se_seed_mm2 << "); " << "NLMM2: " << v_nlmm2 << " (" << se_seed_nlmm2 << ") "
+                << std::endl;
+
+            file << sample_size << "," << v_mc << "," << v_mm1 << "," << v_nlmm1 
+                << "," << se_mc << "," << se_seed_mm1 << "," << se_seed_nlmm1 << "," << se_seed_mm2 << "," << se_seed_nlmm2
+                << std::endl;
+        }
+        file.close();
+        std::cout << TEST_SEPARATOR << std::endl;
+    }
+
     void tests::run_all_tests()
     {
         const double r = 0.05;
@@ -159,6 +222,8 @@ namespace umm
         corr = matrix(std::vector<double>{ 1.0, 0.3, 0.1, 0.3, 1.0, 0.5, 0.1, 0.5, 1.0 }, vols.size(), vols.size());
         test_universal_moment_matching(vols, corr, r, strike, tenor, barrier);
 
+        test_non_linear_moment_matching();
+        
         //test_variance_estimation_time();
     }
 }

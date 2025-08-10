@@ -8,7 +8,7 @@ namespace umm
         m_f_vals.resize(0);
         m_f_vals.reserve(sample_size);
         m_random_normals.resize(0);
-        m_rng->populate_random_normals(m_random_normals, sample_size);
+        m_rng->populate_random_samples(m_random_normals, sample_size);
 
         double sum = 0.0;
         for (const_vector_iterator_t it = m_random_normals.cbegin(); it != m_random_normals.cend(); it += m_dim)
@@ -125,8 +125,8 @@ namespace umm
                 std::vector<double> mean_dn(m_mean);
                 mean_up[i] += dx;
                 mean_dn[i] -= dx;
-                monte_carlo mc_up(m_f, mean_up, m_cov, m_mm_type);
-                monte_carlo mc_dn(m_f, mean_dn, m_cov, m_mm_type);
+                monte_carlo mc_up(m_f, mean_up, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
+                monte_carlo mc_dn(m_f, mean_dn, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
                 const double mean_f_up = mc_up.compute_integral(sample_size);
                 const double mean_f_dn = mc_dn.compute_integral(sample_size);
                 mean_df[i] = (mean_f_up - mean_f_dn) / (2.0 * dx);
@@ -151,10 +151,10 @@ namespace umm
                     mean_dn_up[j] += dx;
                     mean_dn_dn[i] -= dx;
                     mean_dn_dn[j] -= dx;
-                    monte_carlo mc_up_up(m_f, mean_up_up, m_cov, m_mm_type);
-                    monte_carlo mc_up_dn(m_f, mean_up_dn, m_cov, m_mm_type);
-                    monte_carlo mc_dn_up(m_f, mean_dn_up, m_cov, m_mm_type);
-                    monte_carlo mc_dn_dn(m_f, mean_dn_dn, m_cov, m_mm_type);
+                    monte_carlo mc_up_up(m_f, mean_up_up, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
+                    monte_carlo mc_up_dn(m_f, mean_up_dn, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
+                    monte_carlo mc_dn_up(m_f, mean_dn_up, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
+                    monte_carlo mc_dn_dn(m_f, mean_dn_dn, m_cov, NORMAL_DISTRIBUTION, m_mm_type);
 
                     const double mean_f_up_up = mc_up_up.compute_integral(sample_size);
                     const double mean_f_up_dn = mc_up_dn.compute_integral(sample_size);
